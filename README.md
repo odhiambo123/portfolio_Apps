@@ -309,11 +309,308 @@ first_project.save()
 - Repeat for second, third and all other projects.
 
 ```bash
-second_project = Project(
-    title="Intro to HTML, CSS, JavaScript",
-    description="A web development project.",
-    technology="GitHub, Ruby, Markdown, Html, CSS, JS", 
+fourth_project = Project(
+    title="Best shows",
+    description="demonstrating API consumption",
+    technology="", 
     )
 ```
 
+```bash
+fourth_project.save()
+```
+
+```bash
+exit()
+```
+
+### Now we create Views
+
+- creating view functions to send data from database to the templates to display in the portfolio site.
+
+- create two different views in the projects app
+  - index view
+  - Detail view
+- add both views to views.py file already created by Django!
+  - we will import project class from models.py, create a function project_index() that has ORM query for selecting all objects in the projects table, to render the template project_index.html.  
+
+```python
+# projects/views.py
+
+
+from django.shortcuts import render
+
+from projects.models import Project
+
+
+def project_index(request):
+
+    projects = Project.objects.all()
+
+    context = {
+
+        "projects": projects
+
+    }
+
+    return render(request, "projects/project_index.html", context)
+```
+
+- then get the project view 
+
+```python
+# project_detail()
+# this function has the primary key of the project that is being viewed
+# .
+
+def project_detail(request, pk):
+    project = Project.objects.get(pk=pk)
+    context = {
+        "project": project
+    }
+    return render(request, "projects/project_detail.html", context)
+```
+- Now we get to craft the templates:
+  - we can use prestyled components from bootstrap to make the project_index and the project_detail html files
+  - in the projects/templates/projects
+  ```Bash
+  mkdir -p projects/templates/projects
+  touch projects/templates/projects/project_index.html
+  touch projects/templates/projects/project_detail.html
+  - ```
+- we will create a grid of bootstrap cards with each card displaying details about the projects.
+- to avoid hand coding all the cards, we will use a feature of Django template engine that uses [for loops](https://realpython.com/python-for-loop/)
+
+```html
+<!-- projects/templates/projects/project_index.html -->
+
+
+{% extends "base.html" %}
+
+
+{% block page_content %}
+
+<h1>Projects</h1>
+
+<div class="row">
+
+{% for project in projects %}
+
+    <div class="col-md-4">
+
+        <div class="card mb-2">
+
+            <div class="card-body">
+
+                <h5 class="card-title">{{ project.title }}</h5>
+
+                <p class="card-text">{{ project.description }}</p>
+
+                <a href="{% url 'project_detail' project.pk %}"
+
+                   class="btn btn-primary">
+
+                    Read More
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+</div>
+
+{% endblock %}
+```
+- we have extended the base.html
+- begun a for loop and looping over all the projects that the context dictionary passes in 
+- inside the for loop you can access each individual project.
+- to access the projects attributes you use the dot notation inside the double curly brackets 
+- {{project.title}} for example.
+
+
+- create the details page
+```html
+<!-- projects/templates/projects/project_detail.html -->
+
+{% extends "base.html" %}
+
+{% block page_content %}
+<h1>{{ project.title }}</h1>
+<div class="row">
+    <div class="col-md-4">
+        <h5>About the project:</h5>
+        <p>{{ project.description }}</p>
+        <br>
+        <h5>Technology used:</h5>
+        <p>{{ project.technology }}</p>
+    </div>
+</div>
+{% endblock page_content %}
+
+```
+
+### Add the routes 
+
+- routes hook up the functions we created to the urls
+  - create [projects/urls.py](https://gist.github.com/odhiambo123/4819d6bf9131609f8cf1c96aecf5deb7)
+  - hook up the routes to the main project in [personal_portfolio/urls.py](https://gist.github.com/odhiambo123/9b5213d360641f775cbb1b05a79df3a4)
+- 
+- Apply the existing migrations.
+```Bash
+  python manage.py migrate
+```
+- set up your Django Admin site
+```Bash
+python manage.py createsuperuser
+```
+open and log in to your admin server
+```bash
+open http://localhost:8000/admin
+```
+- The Django admin are lets you manage your projects in the browser instead of in the shell
+- [register the models,](https://gist.github.com/odhiambo123/10a21c07684bb7ae26a42d9f097dd862) so you can access them in the Django Admin
+  - use the admin.py  file in the projects' app:
+  
+- 
+```python
+  # projects/admin.py
+
+from django.contrib import admin
+from projects.models import Project
+
+class ProjectAdmin(admin.ModelAdmin):
+    pass
+
+admin.site.register(Project, ProjectAdmin)
+
+
+```
+you can add more projects as you please.
+
 <https://realpython.com/get-started-with-django-1/>
+
+## Upload images
+
+- Open models.py and add images to it.
+```python
+# projects/models.py
+
+from django.db import models
+
+class Project(models.Model):
+    title = models.CharField(max_length=100)
+    description = models.TextField()
+    technology = models.CharField(max_length=20)
+    image = models.FileField(upload_to="project_images/", blank=True)
+
+```
+- In the Project model, we define a FileField with a subfolder named project_images/. This is where
+- Django stores images when we upload them, we also set blank to true so that it's ok for a project not to have one.
+```text
+Note: You could be even more explicit and use an ImageField for your images. If you do so, 
+then you need to install pillow into your development environment first.
+```
+
+- In the sittings.py add the [MEDIA_ROOT](https://docs.djangoproject.com/en/4.2/ref/settings/#media-root) and MEDIA_URL to
+- define folder that store image files and present images to users respectively.
+- We also need to register the static routes to these files in urls.py in the personal_portfolio/:
+```python
+# personal_portfolio/urls.py
+
+from django.contrib import admin
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("", include("pages.urls")),
+    path("projects/", include("projects.urls")),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+```
+- add images through Django admin then connect the images in the templates html files
+
+```html
+<!-- projects/templates/projects/project_index.html -->
+
+
+{% extends "base.html" %}
+
+
+{% block page_content %}
+
+<h1>Projects</h1>
+
+<div class="row">
+
+{% for project in projects %}
+
+    <div class="col-md-4">
+
+        <div class="card mb-2">
+
+            {% if project.image %}
+
+                <img class="card-img-top" src="{{ project.image.url }}">
+
+            {% endif %}
+
+            <div class="card-body">
+
+                <h5 class="card-title">{{ project.title }}</h5>
+
+                <p class="card-text">{{ project.description }}</p>
+
+                <a href="{% url 'project_detail' project.pk %}"
+
+                   class="btn btn-primary">
+
+                    Read More
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+</div>
+
+{% endblock %}
+
+```
+- it checks if the project has an image then loads it to the visitor.
+- Add images to the details page as well
+```html
+<!-- projects/templates/projects/project_detail.html -->
+
+{% extends "base.html" %}
+
+{% block page_content %}
+<h1>{{ project.title }}</h1>
+<div class="row">
+    <div class="col-md-8">
+        {% if project.image %}
+            <img src="{{ project.image.url }}" width="100%">
+        {% endif %}
+    </div>
+    <div class="col-md-4">
+        <h5>About the project:</h5>
+        <p>{{ project.description }}</p>
+        <br>
+        <h5>Technology used:</h5>
+        <p>{{ project.technology }}</p>
+    </div>
+</div>
+{% endblock page_content %}
+
+```
